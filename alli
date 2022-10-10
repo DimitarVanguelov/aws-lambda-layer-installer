@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+# package name is first argument
+PACKAGE=$1
+
+# create install path
+INSTALL_PATH="./tmpdir/python"
+mkdir -p $INSTALL_PATH
+
+# install python package there
+python -m pip install "$PACKAGE" -t $INSTALL_PATH
+
+# get package version
+DIST_INFO="$(find $INSTALL_PATH | grep "$PACKAGE" | grep -E '.dist-info$' | xargs basename)"
+PACKAGE_VERSION="$(grep '^Version: ' $INSTALL_PATH/"$DIST_INFO"/METADATA | cut -d ':' -f2 | tr -d ' ' | tr '.' '-')"
+
+# rename tmp directory to package name-version
+LAYER_NAME="$PACKAGE-$PACKAGE_VERSION"
+mv tmpdir "$LAYER_NAME"
+INSTALL_PATH="./$LAYER_NAME/python"
+
+# preserve metadata file
+cp "$INSTALL_PATH/$DIST_INFO/METADATA" "$INSTALL_PATH/METADATA"  # comment out if keeping .dist-info files
+
+# delete unnecessary files
+find . | grep -E "(\.dist-info$)" | xargs rm -rf  # comment out to keep .dist-info files
+find . | grep -E "(__pycache__|\.pyc|\.pyo$)" | xargs rm -rf
+
+zip -r $LAYER_NAME.zip $INSTALL_PATH
+
+echo "Succesfully created $LAYER_NAME.zip at $(pwd)"
